@@ -13,6 +13,7 @@
 :root{
   --ink:#1C1C1C; --beige:#C9B18B; --beige-soft:#F1EADD; --brown:#6B5535;
   --bg:#F4F4F2; --card:#fff; --face:#EEEDE9; --text:#1A1A1A; --sub:#6B6B68; --line:#DCDCD8;
+  --foot:44px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -37,7 +38,7 @@ input{font:inherit}
 .btn.sm{padding:5px 12px;font-size:14px}
 
 /* 잠금 화면 */
-#lock{min-height:calc(100% - 68px);display:grid;place-items:center;padding:24px}
+#lock{min-height:calc(100% - 68px - var(--foot));display:grid;place-items:center;padding:24px}
 .lockcard{background:var(--card);border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05);padding:36px 32px;width:min(420px,100%)}
 .lockcard h2{margin:0 0 6px;font-size:22px}
 .lockcard p{margin:0 0 20px;color:var(--sub);font-size:15px}
@@ -49,7 +50,7 @@ input{font:inherit}
 .callout{background:var(--beige-soft);border-left:5px solid var(--beige);border-radius:8px;padding:10px 14px;font-weight:600;font-size:14px;margin-bottom:14px}
 
 /* 본문 */
-#app{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;height:calc(100% - 68px)}
+#app{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;height:calc(100% - 68px - var(--foot))}
 #app.collapsed{grid-template-columns:1fr}
 #app.collapsed #side{display:none}
 #side{overflow:auto;padding-right:4px;min-height:0}
@@ -129,6 +130,9 @@ input{font:inherit}
 .pdfv .pframe{flex:1;min-height:0;border:0;background:#fff;display:none}
 .pdfv.cont .pframe{display:block}
 
+/* 저작권·버전 표시 */
+.copy{min-height:var(--foot);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 16px;font-size:11px;line-height:1.5;color:var(--sub);word-break:keep-all}
+
 /* 대화상자·업로드·알림 */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:16px}
 .modal{background:#fff;border-radius:14px;padding:22px;width:min(520px,100%);max-height:90vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.25)}
@@ -154,6 +158,7 @@ input{font:inherit}
 @media(max-width:800px){
   #app{grid-template-columns:1fr;grid-template-rows:auto minmax(60vh,1fr);height:auto}
   #app.collapsed{grid-template-rows:minmax(80vh,1fr)}
+  #lock{min-height:calc(100% - 68px - 60px)}
   #side{max-height:40vh}
   .bar{padding:0 12px;gap:8px}
   .bar h1{font-size:17px;line-height:1.25}
@@ -226,6 +231,9 @@ input{font:inherit}
     <div class="queue" id="queue"></div>
     <div class="mbtns"><button class="btn" id="uplClose">닫기</button></div>
   </div>
+</div>
+<div class="copy">
+  <div>예랑샘의 수업자료실 © 2026 KIMYERANG. 본 앱은 자유롭게 사용할 수 있으나, 저작자의 허락 없는<br>복제·배포·수정은 금지합니다. · v1.1 (2026-10-07)</div>
 </div>
 <div id="toast" hidden></div>
 
