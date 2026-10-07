@@ -109,6 +109,24 @@ input{font:inherit}
 .prog i{display:block;height:100%;width:0;background:var(--ink);transition:width .15s}
 #stage:fullscreen{background:#000}
 
+
+/* PDF 한 쪽씩 보기 */
+.pdfv{position:absolute;inset:0;display:flex;flex-direction:column;background:#2b2b2b;outline:none}
+.pdfarea{flex:1;min-height:0;position:relative;display:grid;place-items:center;overflow:hidden;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none}
+.pdfarea canvas{background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.45);max-width:none}
+.pdfhint{position:absolute;top:50%;transform:translateY(-50%);font-size:30px;color:#fff;opacity:0;transition:opacity .15s;background:rgba(0,0,0,.4);width:42px;height:62px;display:grid;place-items:center;border-radius:10px;pointer-events:none}
+.pdfhint.l{left:10px}.pdfhint.r{right:10px}
+.pdfarea:hover .pdfhint{opacity:.75}
+.pdfmsg{position:absolute;color:#fff;font-size:14px}
+.pdfbar{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;background:var(--ink);color:#fff;font-size:14px;flex-wrap:wrap}
+.pdfbar button{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:8px;padding:4px 12px;min-width:36px}
+.pdfbar button:hover{background:rgba(255,255,255,.15)}
+.pdfbar input{width:54px;text-align:center;padding:4px;border-radius:6px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.1);color:#fff}
+.pdfbar .sp{flex:1;min-width:8px}
+.pdfv.cont .pdfarea,.pdfv.cont .pnav{display:none}
+.pdfv .pframe{flex:1;min-height:0;border:0;background:#fff;display:none}
+.pdfv.cont .pframe{display:block}
+
 /* 대화상자·업로드·알림 */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:16px}
 .modal{background:#fff;border-radius:14px;padding:22px;width:min(520px,100%);max-height:90vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.25)}
@@ -472,7 +490,11 @@ input{font:inherit}
     if (my !== busy) return;
     curBlobInfo = {url: ent.url, i};
     let node;
-    if (it.kind === 'pdf') { node = el('iframe'); node.src = ent.url; }
+    if (it.kind === 'pdf') {
+      try { node = await pdfView(ent); }
+      catch (e) { node = el('iframe'); node.src = ent.url; }     // 라이브러리를 못 받으면 기본 뷰어로
+      if (my !== busy) return;
+    }
     else if (it.kind === 'html') {
       node = el('iframe'); node.src = ent.url;
       node.setAttribute('allow', 'camera; microphone; fullscreen; autoplay; clipboard-write');
@@ -484,6 +506,111 @@ input{font:inherit}
     else { node = el('pre'); node.textContent = await ent.blob.text(); }
     stage(node);
     setBar(it.name, {down: !!it.orig, tab: ['pdf', 'html', 'image'].includes(it.kind), full: true});
+  }
+
+
+  /* ---------- PDF: 한 화면에 한 쪽씩 (PDF.js) ---------- */
+  const PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  let pdfjsP = null;
+  function loadPdfjs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (pdfjsP) return pdfjsP;
+    pdfjsP = new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = PDFJS_BASE + 'pdf.min.js';
+      sc.onload = async () => {
+        try {   // 다른 주소의 워커는 바로 못 쓰므로 내려받아 Blob 주소로 만든다
+          const t = await (await fetch(PDFJS_BASE + 'pdf.worker.min.js')).text();
+          pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], {type: 'text/javascript'}));
+        } catch (e) { pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.js'; }
+        res(pdfjsLib);
+      };
+      sc.onerror = () => { pdfjsP = null; rej(new Error('pdfjs')); };
+      document.head.append(sc);
+    });
+    return pdfjsP;
+  }
+
+  async function pdfView(ent) {
+    const lib = await loadPdfjs();
+    if (!ent.pdf) {
+      const data = new Uint8Array(await ent.blob.arrayBuffer());
+      ent.pdf = await lib.getDocument({data, cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/', cMapPacked: true}).promise;
+    }
+    const pdf = ent.pdf, N = pdf.numPages;
+    let page = Math.min(ent.page || 1, N), seq = 0, task = null;
+
+    const root = el('div', 'pdfv'); root.tabIndex = 0;
+    root.innerHTML = `<div class="pdfarea"><canvas></canvas><div class="pdfhint l">‹</div><div class="pdfhint r">›</div></div>
+      <iframe class="pframe"></iframe>
+      <div class="pdfbar"><span class="pnav"><button data-a="prev" title="이전 쪽 (←)">◀</button>
+      <input type="text" inputmode="numeric" value="${page}" aria-label="쪽 번호"> / ${N}
+      <button data-a="next" title="다음 쪽 (→, 클릭)">▶</button></span><span class="sp"></span>
+      <button data-a="mode">이어서 보기</button></div>`;
+    const area = root.querySelector('.pdfarea'), cv = root.querySelector('canvas'), inp = root.querySelector('input'), ctx = cv.getContext('2d');
+
+    async function render() {
+      const my = ++seq;
+      const pg = await pdf.getPage(page);
+      if (my !== seq) return;
+      const box = area.getBoundingClientRect();
+      if (box.width < 20 || box.height < 20) return;
+      const v1 = pg.getViewport({scale: 1}), dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const fit = Math.min((box.width - 16) / v1.width, (box.height - 16) / v1.height);
+      const vp = pg.getViewport({scale: fit * dpr});
+      if (task) { task.cancel(); try { await task.promise; } catch (e) { /* 취소됨 */ } }
+      if (my !== seq) return;
+      cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+      cv.style.width = Math.floor(vp.width / dpr) + 'px'; cv.style.height = Math.floor(vp.height / dpr) + 'px';
+      task = pg.render({canvasContext: ctx, viewport: vp});
+      try { await task.promise; } catch (e) { /* 취소됨 */ }
+      inp.value = page;
+    }
+    const go = n => { n = Math.max(1, Math.min(N, n)); if (n === page) return; page = n; ent.page = n; inp.value = n; render(); };
+
+    // 클릭(오른쪽=다음, 왼쪽=이전) / 좌우로 밀기(스와이프·드래그)
+    let sx = 0, sy = 0, down = false;
+    area.addEventListener('pointerdown', e => { down = true; sx = e.clientX; sy = e.clientY; root.focus({preventScroll: true}); });
+    area.addEventListener('pointerup', e => {
+      if (!down) return; down = false;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) go(page + (dx < 0 ? 1 : -1));
+      else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+        const r = area.getBoundingClientRect(); go(page + (e.clientX - r.left < r.width * 0.35 ? -1 : 1));
+      }
+    });
+    area.addEventListener('pointercancel', () => down = false);
+    let wheelAt = 0;
+    area.addEventListener('wheel', e => {
+      e.preventDefault();
+      if (Date.now() - wheelAt < 350 || Math.abs(e.deltaY) < 4) return;
+      wheelAt = Date.now(); go(page + (e.deltaY > 0 ? 1 : -1));
+    }, {passive: false});
+
+    const onKey = e => {
+      if (!root.isConnected) return removeEventListener('keydown', onKey);
+      if (root.classList.contains('cont') || e.target === inp || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key;
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) go(page + 1);
+      else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) go(page - 1);
+      else if (k === 'Home') go(1); else if (k === 'End') go(N); else return;
+      e.preventDefault();
+    };
+    addEventListener('keydown', onKey);
+
+    root.querySelector('[data-a=prev]').onclick = () => go(page - 1);
+    root.querySelector('[data-a=next]').onclick = () => go(page + 1);
+    inp.onchange = () => { const n = parseInt(inp.value, 10); inp.value = page; if (n) go(n); };
+    inp.onfocus = () => inp.select();
+    const mode = root.querySelector('[data-a=mode]');
+    mode.onclick = () => {
+      const cont = root.classList.toggle('cont');
+      const f = root.querySelector('.pframe'); if (cont && !f.src) f.src = ent.url;
+      mode.textContent = cont ? '한 쪽씩 보기' : '이어서 보기';
+      if (!cont) render();
+    };
+    new ResizeObserver(() => { clearTimeout(root._rt); root._rt = setTimeout(render, 80); }).observe(area);
+    requestAnimationFrame(() => { render(); root.focus({preventScroll: true}); });
+    return root;
   }
 
   function showFrame(l) {
