@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>예랑샘의 수업자료실</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C1C1C'/%3E%3Crect x='8' y='14' width='16' height='11' rx='2' fill='%23C9B18B'/%3E%3Cpath d='M11 14v-3a5 5 0 0 1 10 0v3' stroke='%23C9B18B' stroke-width='2.5' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+:root{
+  --ink:#1C1C1C; --beige:#C9B18B; --beige-soft:#F1EADD; --brown:#6B5535;
+  --bg:#F4F4F2; --card:#fff; --face:#EEEDE9; --text:#1A1A1A; --sub:#6B6B68; --line:#DCDCD8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'Noto Sans KR','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.5}
+button{font:inherit;cursor:pointer}
+input{font:inherit}
+[hidden]{display:none!important}
+
+/* 헤더 */
+.bar{background:var(--ink);color:#fff;height:68px;display:flex;align-items:center;gap:14px;padding:0 24px}
+.bar h1{font-size:22px;font-weight:700;margin:0}
+.bar .sub{color:var(--beige);font-size:14px}
+.bar .grow{flex:1}
+.pill{background:rgba(255,255,255,.14);border-radius:999px;padding:5px 14px;font-size:13px}
+.btn{background:var(--ink);color:#fff;border:2px solid var(--ink);border-radius:8px;padding:9px 18px;font-weight:500}
+.btn.ghost{background:#fff;color:var(--ink);border-color:var(--ink)}
+.btn.danger{background:#4D4D4D;border-color:#4D4D4D}
+.bar .btn{background:transparent;border-color:rgba(255,255,255,.5);padding:6px 14px;font-size:14px}
+.bar .btn.on{background:var(--beige);border-color:var(--beige);color:var(--ink);font-weight:700}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:5px 12px;font-size:14px}
+
+/* 잠금 화면 */
+#lock{min-height:calc(100% - 68px);display:grid;place-items:center;padding:24px}
+.lockcard{background:var(--card);border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05);padding:36px 32px;width:min(420px,100%)}
+.lockcard h2{margin:0 0 6px;font-size:22px}
+.lockcard p{margin:0 0 20px;color:var(--sub);font-size:15px}
+.lockcard input{width:100%;font-size:18px;padding:12px 14px;border:2px solid var(--line);border-radius:10px;margin-bottom:12px}
+.lockcard input:focus,.field input:focus,.search:focus{outline:none;border-color:var(--ink)}
+.lockcard .btn{width:100%;padding:12px;font-size:17px}
+.err{margin-top:14px;background:var(--face);border-left:5px solid #4D4D4D;border-radius:8px;padding:10px 14px;font-size:15px;font-weight:500}
+.note{margin-top:18px;font-size:13px;color:var(--sub)}
+.callout{background:var(--beige-soft);border-left:5px solid var(--beige);border-radius:8px;padding:10px 14px;font-weight:600;font-size:14px;margin-bottom:14px}
+
+/* 본문 */
+#app{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;height:calc(100% - 68px)}
+#app.collapsed{grid-template-columns:1fr}
+#app.collapsed #side{display:none}
+#side{overflow:auto;padding-right:4px;min-height:0}
+.search{width:100%;padding:10px 14px;border:2px solid var(--line);border-radius:10px;background:#fff;margin-bottom:12px}
+.tree{background:var(--card);border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05);padding:8px}
+.line{display:flex;align-items:center;gap:2px}
+.line>.fold,.line>.row{flex:1;min-width:0}
+.fold{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:7px 8px;color:inherit;font-weight:500;font-size:15px}
+.fold:hover,.row:hover{background:var(--face)}
+.fold.sel{background:var(--beige-soft)}
+.fold .chev{flex:none;width:12px;color:var(--sub);font-size:10px;transition:transform .12s}
+.fold.open .chev{transform:rotate(90deg)}
+.fold .ico{flex:none;width:20px;height:16px;fill:var(--beige)}
+.fold.open .ico{fill:var(--brown)}
+.fold .cnt{margin-left:auto;color:var(--sub);font-size:12px;font-weight:400}
+.kids{margin-left:15px;padding-left:6px;border-left:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:6px 8px;color:inherit}
+.row.on{background:var(--beige-soft);box-shadow:inset 4px 0 0 var(--beige)}
+.tag{flex:none;min-width:42px;text-align:center;background:var(--ink);color:#fff;border-radius:6px;font-size:11px;font-weight:700;padding:2px 0;letter-spacing:.03em}
+.tag.link{background:var(--beige);color:var(--ink)}
+.tag.other{background:#8A8A86}
+.rname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+.rmeta{color:var(--sub);font-size:12px;flex:none}
+.rdesc{display:block;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.line .btn.mini{padding:2px 8px;font-size:12px;border-width:1px;flex:none}
+.acts{display:none;flex:none;gap:2px}
+.manage .acts{display:flex}
+.acts button{border:0;background:var(--face);border-radius:6px;width:26px;height:26px;font-size:13px;padding:0}
+.acts button:hover{background:var(--beige)}
+.toolbar{display:none;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.manage .toolbar{display:flex}
+.toolbar .where{flex-basis:100%;font-size:13px;color:var(--sub)}
+.toolbar .where b{color:var(--brown)}
+
+/* 뷰어 */
+#view{background:var(--card);border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05);display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden}
+.vbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.vbar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stage{flex:1;min-height:0;position:relative;background:var(--face)}
+#stage>iframe,#stage>video,#stage>embed{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+#stage>video{background:#000}
+#stage>audio{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,90%)}
+#stage>img{position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%}
+#stage>pre{position:absolute;inset:0;margin:0;overflow:auto;padding:18px;background:#fff;white-space:pre-wrap;font:15px/1.7 'Noto Sans KR','Malgun Gothic',monospace}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--sub);padding:24px}
+.empty .big{font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px}
+.prog{width:min(360px,80%);height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:12px auto 0}
+.prog i{display:block;height:100%;width:0;background:var(--ink);transition:width .15s}
+#stage:fullscreen{background:#000}
+
+/* 대화상자·업로드·알림 */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:16px}
+.modal{background:#fff;border-radius:14px;padding:22px;width:min(520px,100%);max-height:90vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.modal h3{margin:0 0 12px;font-size:18px}
+.modal p{margin:0 0 14px;color:var(--sub);font-size:15px;white-space:pre-line}
+.field{display:block;margin-bottom:12px;font-size:13px;color:var(--sub)}
+.field input{display:block;width:100%;margin-top:4px;padding:9px 12px;border:2px solid var(--line);border-radius:8px;color:var(--text);font-size:15px}
+.mbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.drop{border:2px dashed var(--beige);background:#FAF9F6;border-radius:12px;padding:26px 16px;text-align:center;color:var(--sub);margin-bottom:12px}
+.drop.over{background:var(--beige-soft);border-color:var(--brown)}
+.drop .btn{margin:8px 4px 0}
+.queue{max-height:260px;overflow:auto}
+.qi{padding:6px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.qi .qh{display:flex;gap:8px;justify-content:space-between}
+.qi .qn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qi .qs{flex:none;color:var(--sub);font-size:12px}
+.qi .qb{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:4px}
+.qi .qb i{display:block;height:100%;width:0;background:var(--ink)}
+.qi.ok .qb i{background:var(--beige)}
+.qi.bad .qs{color:#4D4D4D;font-weight:700}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:999px;padding:10px 20px;font-size:14px;z-index:60;max-width:90vw}
+
+@media(max-width:800px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto minmax(60vh,1fr);height:auto}
+  #app.collapsed{grid-template-rows:minmax(80vh,1fr)}
+  #side{max-height:40vh}
+  .bar{padding:0 14px}.bar .sub{display:none}
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>예랑샘의 수업자료실</h1><span class="sub">잠겨 있어요 · 비밀번호를 입력하세요</span><span class="grow"></span>
+  <span class="pill" id="state">잠김</span>
+  <button class="btn" id="manageBtn" hidden title="올리기·정리 도구 보이기/숨기기">✎ 관리</button>
+  <button class="btn" id="lockBtn" hidden>🔒 잠그기</button>
+</div>
+
+<div id="lock">
+  <form class="lockcard" id="form" autocomplete="off">
+    <h2 id="lockTitle">수업 자료 열기</h2>
+    <p id="lockDesc">비밀번호는 이 브라우저 탭의 메모리에서만 쓰이고, 어디에도 저장되지 않아요.</p>
+    <input id="pw" type="password" placeholder="비밀번호" autocomplete="off" autofocus>
+    <input id="pw2" type="password" placeholder="비밀번호 한 번 더" autocomplete="off" hidden>
+    <button class="btn" id="go" type="submit">열기</button>
+    <div class="err" id="err" hidden></div>
+    <div class="note">탭을 닫으면 자료는 모두 사라집니다. 공용 PC에서는 시크릿(게스트) 창을 권장해요.</div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <aside id="side">
+    <input class="search" id="q" type="search" placeholder="자료·링크 검색">
+    <div class="toolbar" id="toolbar">
+      <button class="btn sm" id="tbUpload">＋ 올리기</button>
+      <button class="btn ghost sm" id="tbFolder">새 폴더</button>
+      <button class="btn ghost sm" id="tbLink">링크 추가</button>
+      <div class="where">위치: <b id="where">/</b> <span>(폴더를 누르면 바뀌어요)</span></div>
+    </div>
+    <div id="list"></div>
+  </aside>
+  <section id="view">
+    <div class="vbar">
+      <button class="btn ghost sm" id="toggleSide" title="목록 열기/닫기 (Ctrl+B)" aria-label="목록 열기/닫기">☰</button>
+      <b id="vtitle">자료를 선택하세요</b>
+      <button class="btn ghost sm" id="vdown" hidden>원본 받기</button>
+      <button class="btn ghost sm" id="vtab" hidden>새 탭</button>
+      <button class="btn sm" id="vfull" hidden>전체화면</button>
+    </div>
+    <div id="stage"><div class="empty"><div><div class="big">왼쪽에서 자료를 고르세요</div>PDF · HTML · 영상 · 이미지 · 음성</div></div></div>
+  </section>
+</div>
+
+<div class="overlay" id="upl" hidden>
+  <div class="modal">
+    <h3>자료 올리기</h3>
+    <p style="margin-bottom:10px">올릴 위치: <b id="uplWhere">/</b></p>
+    <div class="drop" id="drop">
+      여기에 파일이나 폴더를 끌어다 놓으세요
+      <div><button class="btn sm" id="pickFiles">파일 선택</button><button class="btn ghost sm" id="pickDir">폴더 선택</button></div>
+    </div>
+    <input type="file" id="fileIn" multiple hidden>
+    <input type="file" id="dirIn" webkitdirectory hidden>
+    <div class="queue" id="queue"></div>
+    <div class="mbtns"><button class="btn" id="uplClose">닫기</button></div>
+  </div>
+</div>
+<div id="toast" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const API = (window.VAULT_API || '').trim();     // 비어 있으면 읽기 전용(정적 빌드) 모드
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const CH = 3 * 1024 * 1024;                      // 업로드 조각 크기
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let key = null, token = null, manifest = null, current = null, manage = false, selDir = '', uploading = 0, needSetup = false;
+  const cache = new Map(), MAX_CACHE = 3;
+  let busy = 0;
+
+  const fmtSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
+  const TAGS = {pdf:'PDF', html:'HTML', video:'영상', audio:'음성', image:'이미지', text:'텍스트', other:'파일'};
+  const tagOf = it => it.orig && it.kind === 'pdf' && it.ext !== 'pdf' ? it.ext.toUpperCase().slice(0, 4) : (TAGS[it.kind] || '파일');
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  const toHex = u => [...u].map(b => b.toString(16).padStart(2, '0')).join('');
+  const fromHex = h => Uint8Array.from(h.match(/../g).map(x => parseInt(x, 16)));
+  const b64e = u => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+  const b64d = s => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  const randHex = n => toHex(crypto.getRandomValues(new Uint8Array(n)));
+  const natural = (a, b) => a.localeCompare(b, 'ko', {numeric: true});
+  const norm = p => p.split('/').map(s => s.trim()).filter(Boolean).join('/');
+
+  let toastT;
+  function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
+
+  /* ---------- 저장소: 구글 드라이브(API) 또는 정적 파일 ---------- */
+  async function rpc(q) {
+    let last;
+    for (let k = 0; k < 4; k++) {
+      try {
+        const r = await fetch(API, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(q)});
+        return await r.json();
+      } catch (e) { last = e; await sleep(700 * (k + 1)); }
+    }
+    throw new Error('서버에 연결하지 못했어요. 인터넷을 확인해 주세요.');
+  }
+  const store = {
+    async meta() {
+      if (API) return rpc({a: 'meta'});
+      const m = await (await fetch('meta.json', {cache: 'no-cache'})).json();
+      return {init: true, salt: m.salt, iter: m.iter};
+    },
+    async get(name) {
+      if (API) {
+        const r = await rpc({a: 'get', t: token, name});
+        if (!r.ok) throw new Error(r.error === 'auth' ? 'wrong' : r.error === 'nf' ? 'nf' : (r.error || '불러오기 실패'));
+        return b64d(r.b64);
+      }
+      const r = await fetch(name === 'manifest.enc' ? name : 'd/' + name);
+      if (!r.ok) throw new Error(r.status === 404 ? 'nf' : '다운로드 실패 (' + r.status + ')');
+      return new Uint8Array(await r.arrayBuffer());
+    },
+    async put(name, bytes) {
+      const r = await rpc({a: 'put', t: token, name, b64: b64e(bytes)});
+      if (!r.ok) throw new Error(r.error || '저장 실패');
+    },
+    async del(names) { await rpc({a: 'del', t: token, names}); }
+  };
+
+  /* ---------- 암호 ---------- */
+  async function derive(pw, salt, iter) {
+    const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
+    const bits = new Uint8Array(await crypto.subtle.deriveBits({name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256'}, base, 512));
+    key = await crypto.subtle.importKey('raw', bits.slice(0, 32), 'AES-GCM', false, ['encrypt', 'decrypt']);
+    token = toHex(bits.slice(32));          // 서버 확인용 열쇠 (암호화 키와는 다른 절반)
+  }
+  const open = async buf => crypto.subtle.decrypt({name: 'AES-GCM', iv: buf.slice(0, 12)}, key, buf.slice(12));
+  async function seal(data) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, data));
+    const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return out;
+  }
+  async function saveManifest() {
+    manifest.built = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    await store.put('manifest.enc', await seal(enc.encode(JSON.stringify(manifest))));
+  }
+
+  async function unlock(pw, pw2) {
+    const meta = await store.meta();
+    if (API && !meta.init) {                                   // 처음 설정
+      if (pw.length < 10) throw new Error('비밀번호는 10자 이상으로 정해 주세요. (단어 여러 개를 이어 쓰면 좋아요)');
+      if (pw !== pw2) throw new Error('비밀번호가 서로 달라요.');
+      const salt = crypto.getRandomValues(new Uint8Array(16)), iter = 600000;
+      await derive(pw, salt, iter);
+      const r = await rpc({a: 'init', t: token, salt: toHex(salt), iter});
+      if (!r.ok) throw new Error('처음 설정에 실패했어요. (' + r.error + ')');
+      manifest = {v: 1, items: [], links: [], dirs: []};
+      await saveManifest();
+      return;
+    }
+    await derive(pw, fromHex(meta.salt), meta.iter);
+    let buf;
+    try { buf = await store.get('manifest.enc'); }
+    catch (e) { key = token = null; if (e.message === 'nf' && API) { manifest = {v: 1, items: [], links: [], dirs: []}; return; } throw e; }
+    try { manifest = JSON.parse(dec.decode(await open(buf))); }
+    catch { key = token = null; throw new Error('wrong'); }
+    manifest.items ||= []; manifest.links ||= []; manifest.dirs ||= [];
+  }
+
+  async function loadBlob(ref, mime, onProgress) {
+    const parts = new Array(ref.n); let done = 0, next = 0;
+    async function worker() {
+      while (next < ref.n) {
+        const i = next++;
+        parts[i] = await open(await store.get(`${ref.id}.${i}`));
+        onProgress && onProgress(++done / ref.n);
+      }
+    }
+    await Promise.all(Array.from({length: Math.min(API ? 5 : 4, ref.n)}, worker));
+    return new Blob(parts, {type: mime});
+  }
+
+  /* ---------- 대화상자 ---------- */
+  function dialog({title, msg, fields = [], ok = '확인', danger = false}) {
+    return new Promise(res => {
+      const ov = el('div', 'overlay'), m = el('form', 'modal');
+      m.append(el('h3', '', esc(title)));
+      if (msg) m.append(el('p', '', esc(msg)));
+      const inputs = fields.map(f => {
+        const l = el('label', 'field', esc(f.label)), i = el('input'); i.value = f.value || ''; i.placeholder = f.ph || '';
+        l.append(i); m.append(l); return i;
+      });
+      const b = el('div', 'mbtns'), no = el('button', 'btn ghost', '취소'), yes = el('button', 'btn' + (danger ? ' danger' : ''), esc(ok));
+      no.type = 'button'; b.append(no, yes); m.append(b); ov.append(m); document.body.append(ov);
+      const done = v => { ov.remove(); res(v); };
+      no.onclick = () => done(null);
+      m.onsubmit = e => { e.preventDefault(); done(fields.length ? inputs.map(i => i.value.trim()) : true); };
+      (inputs[0] || yes).focus();
+    });
+  }
+
+  /* ---------- 목록(폴더 트리) ---------- */
+  const openDirs = new Set();
+  const FOLDER = '<svg class="ico" viewBox="0 0 20 16"><path d="M0 2.5A1.5 1.5 0 0 1 1.5 1h5l2 2h10A1.5 1.5 0 0 1 20 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-17A1.5 1.5 0 0 1 0 13.5z"/></svg>';
+  const makeNode = () => ({dirs: new Map(), files: []});
+  function dive(root, path) {
+    let n = root;
+    for (const part of path.split('/').filter(Boolean)) { if (!n.dirs.has(part)) n.dirs.set(part, makeNode()); n = n.dirs.get(part); }
+    return n;
+  }
+  const countAll = n => n.files.length + [...n.dirs.values()].reduce((a, d) => a + countAll(d), 0);
+
+  function renderList() {
+    const q = $('q').value.trim().toLowerCase();
+    const files = makeNode(), links = makeNode();
+    manifest.dirs.forEach(d => { if (!q) dive(files, d); });
+    manifest.items.forEach((it, i) => {
+      if (q && !(it.name + ' ' + it.cat).toLowerCase().includes(q)) return;
+      dive(files, it.cat).files.push({it, i});
+    });
+    manifest.links.forEach((l, li) => {
+      if (q && !(l.title + ' ' + l.desc + ' ' + l.cat).toLowerCase().includes(q)) return;
+      dive(links, l.cat).files.push({l, li});
+    });
+    const list = $('list'); list.textContent = '';
+    const tree = el('div', 'tree'), forceOpen = !!q;
+
+    function drawNode(node, path, into, root) {
+      [...node.dirs.keys()].sort(natural).forEach(name => {
+        const child = node.dirs.get(name), key = path + '/' + name, rel = key.slice(root.length + 1);
+        const open = forceOpen || openDirs.has(key);
+        const line = el('div', 'line');
+        const f = el('button', 'fold' + (open ? ' open' : '') + (root === '@files' && selDir === rel ? ' sel' : ''),
+          `<span class="chev">▶</span>${FOLDER}<span class="rname">${esc(name)}</span><span class="cnt">${countAll(child)}</span>`);
+        f.onclick = () => {
+          if (root === '@files') selDir = rel;
+          openDirs.has(key) ? openDirs.delete(key) : openDirs.add(key); renderList();
+        };
+        line.append(f);
+        if (root === '@files') line.append(actions(() => editFolder(rel), () => deleteFolder(rel)));
+        into.append(line);
+        if (open) { const k = el('div', 'kids'); drawNode(child, key, k, root); into.append(k); }
+      });
+      const nameOf = x => x.it ? x.it.name : x.l.title;
+      node.files.sort((a, b) => natural(nameOf(a), nameOf(b)));
+      node.files.forEach(x => into.append(x.l ? linkRow(x.l, x.li) : fileRow(x.it, x.i)));
+    }
+    function actions(onEdit, onDel) {
+      const a = el('span', 'acts'), e = el('button', '', '✎'), d = el('button', '', '🗑');
+      e.title = '이름·위치 바꾸기'; d.title = '삭제';
+      e.onclick = ev => { ev.stopPropagation(); onEdit(); }; d.onclick = ev => { ev.stopPropagation(); onDel(); };
+      a.append(e, d); return a;
+    }
+    function fileRow(it, i) {
+      const line = el('div', 'line');
+      const b = el('button', 'row' + (current === i ? ' on' : ''),
+        `<span class="tag ${it.kind === 'other' ? 'other' : ''}">${esc(tagOf(it))}</span><span class="rname" title="${esc(it.name)}">${esc(it.name)}</span><span class="rmeta">${fmtSize((it.view || it.orig).size)}</span>`);
+      b.onclick = () => openItem(i);
+      line.append(b, actions(() => editItem(i), () => deleteItem(i))); return line;
+    }
+    function linkRow(l, li) {
+      const line = el('div', 'line');
+      const b = el('button', 'row', `<span class="tag link">링크</span><span class="rname" title="${esc(l.url)}">${esc(l.title)}${l.desc ? `<span class="rdesc">${esc(l.desc)}</span>` : ''}</span>`);
+      b.onclick = () => window.open(l.url, '_blank', 'noopener');
+      const emb = el('button', 'btn ghost mini', '여기서'); emb.title = '이 화면 안에서 열기 (사이트가 허용할 때만)';
+      emb.onclick = () => showFrame(l);
+      const a = el('span', 'acts'), d = el('button', '', '🗑'); d.title = '링크 삭제'; d.onclick = () => deleteLink(li); a.append(d);
+      line.append(b, emb, a); return line;
+    }
+
+    if (countAll(links)) {
+      const closed = openDirs.has('!links'), open = forceOpen || !closed;
+      const f = el('button', 'fold' + (open ? ' open' : ''),
+        `<span class="chev">▶</span>${FOLDER}<span class="rname">자주 쓰는 링크</span><span class="cnt">${countAll(links)}</span>`);
+      f.onclick = () => { closed ? openDirs.delete('!links') : openDirs.add('!links'); renderList(); };
+      const line = el('div', 'line'); line.append(f); tree.append(line);
+      if (open) { const k = el('div', 'kids'); drawNode(links, '@links', k, '@links'); tree.append(k); }
+    }
+    drawNode(files, '@files', tree, '@files');
+    if (!tree.children.length) tree.append(el('div', 'note', q ? '검색 결과가 없어요.' : (API ? '비어 있어요. 위의 「✎ 관리」를 눌러 자료를 올려 보세요.' : '자료가 없어요.')));
+    list.append(tree);
+    $('where').textContent = '/' + selDir;
+    $('state').textContent = `열림 · 자료 ${manifest.items.length}개`;
+  }
+  function revealItem(i) {
+    let path = '@files';
+    manifest.items[i].cat.split('/').filter(Boolean).forEach(p => { path += '/' + p; openDirs.add(path); });
+  }
+
+  /* ---------- 보기 ---------- */
+  function stage(node) { $('stage').textContent = ''; node && $('stage').append(node); }
+  function message(big, small, extra) {
+    const w = el('div', 'empty'), d = el('div'); d.innerHTML = `<div class="big">${esc(big)}</div>${small || ''}`;
+    extra && d.append(extra); w.append(d); stage(w); return d;
+  }
+  function setBar(title, {down, tab, full} = {}) {
+    $('vtitle').textContent = title;
+    $('vdown').hidden = !down; $('vtab').hidden = !tab; $('vfull').hidden = !full;
+  }
+  let curBlobInfo = null;
+
+  async function openItem(i) {
+    const it = manifest.items[i], my = ++busy;
+    current = i; revealItem(i); renderList(); stopMedia();
+    setBar(it.name);
+    if (it.kind === 'other') {
+      const b = el('button', 'btn', '내려받기'); b.onclick = () => download(i, 'orig');
+      message(it.name, '이 형식은 화면에서 바로 볼 수 없어요.<br>(한글·워드는 PDF로 바꿔 올리면 바로 열려요)<br>', b);
+      setBar(it.name); return;
+    }
+    let ent = cache.get(i);
+    if (!ent) {
+      const bar = el('div', 'prog'); bar.innerHTML = '<i></i>';
+      message('불러오는 중…', `${fmtSize(it.view.size)} · 복호화하고 있어요`, bar);
+      try {
+        const blob = await loadBlob(it.view, it.mime, p => { const f = bar.firstChild; if (f) f.style.width = (p * 100) + '%'; });
+        if (my !== busy) return;
+        ent = {blob, url: URL.createObjectURL(blob)};
+        cache.set(i, ent);
+        while (cache.size > MAX_CACHE) { const k = cache.keys().next().value; URL.revokeObjectURL(cache.get(k).url); cache.delete(k); }
+      } catch (e) { if (my === busy) message('불러오지 못했어요', esc(e.message)); return; }
+    }
+    if (my !== busy) return;
+    curBlobInfo = {url: ent.url, i};
+    let node;
+    if (it.kind === 'pdf') { node = el('iframe'); node.src = ent.url; }
+    else if (it.kind === 'html') {
+      node = el('iframe'); node.src = ent.url;
+      node.setAttribute('allow', 'camera; microphone; fullscreen; autoplay; clipboard-write');
+      node.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock allow-presentation');
+    }
+    else if (it.kind === 'video') { node = el('video'); node.controls = true; node.autoplay = true; node.src = ent.url; }
+    else if (it.kind === 'audio') { node = el('audio'); node.controls = true; node.autoplay = true; node.src = ent.url; }
+    else if (it.kind === 'image') { node = el('img'); node.src = ent.url; }
+    else { node = el('pre'); node.textContent = await ent.blob.text(); }
+    stage(node);
+    setBar(it.name, {down: !!it.orig, tab: ['pdf', 'html', 'image'].includes(it.kind), full: true});
+  }
+
+  function showFrame(l) {
+    current = null; renderList(); stopMedia(); curBlobInfo = null;
+    const f = el('iframe'); f.src = l.url;
+    f.setAttribute('allow', 'camera; microphone; fullscreen; autoplay; clipboard-write');
+    stage(f); setBar(l.title, {full: true});
+    $('vtab').hidden = false; $('vtab').onclick = () => window.open(l.url, '_blank', 'noopener');
+  }
+  function stopMedia() { $('stage').querySelectorAll('video,audio').forEach(m => m.pause()); }
+
+  async function download(i, which) {
+    const it = manifest.items[i], ref = it[which];
+    const blob = await loadBlob(ref, 'application/octet-stream');
+    const a = el('a'); a.href = URL.createObjectURL(blob); a.download = it.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+  $('vdown').onclick = () => curBlobInfo && download(curBlobInfo.i, 'orig');
+  $('vtab').onclick = () => curBlobInfo && window.open(curBlobInfo.url, '_blank');
+  $('vfull').onclick = () => { const s = $('stage'); document.fullscreenElement ? document.exitFullscreen() : s.requestFullscreen(); };
+  const toggleSide = () => $('app').classList.toggle('collapsed');
+  $('toggleSide').onclick = toggleSide;
+  addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && key) { e.preventDefault(); toggleSide(); } });
+  $('q').oninput = renderList;
+
+  /* ---------- 관리: 이름·위치·삭제 ---------- */
+  async function blobsOf(items) {
+    const names = [];
+    for (const it of items) for (const r of [it.view, it.orig]) if (r) for (let i = 0; i < r.n; i++) names.push(`${r.id}.${i}`);
+    return names;
+  }
+  async function purge(items) {                      // 저장소의 조각 파일 삭제(실패해도 목록에는 영향 없음)
+    const names = await blobsOf(items);
+    try { for (let i = 0; i < names.length; i += 25) await store.del(names.slice(i, i + 25)); } catch (e) { /* 남은 조각은 무시 */ }
+  }
+  async function commit(msg) {
+    try { await saveManifest(); renderList(); msg && toast(msg); }
+    catch (e) { toast('저장하지 못했어요: ' + e.message, 5000); }
+  }
+  async function editItem(i) {
+    const it = manifest.items[i];
+    const v = await dialog({title: '이름·위치 바꾸기', fields: [{label: '파일 이름', value: it.name}, {label: '폴더 (예: 문학/현대시)', value: it.cat}], ok: '바꾸기'});
+    if (!v || !v[0]) return;
+    it.name = v[0]; it.cat = norm(v[1]); await commit('바꿨어요');
+  }
+  async function deleteItem(i) {
+    const it = manifest.items[i];
+    if (!await dialog({title: '삭제할까요?', msg: `「${it.name}」을(를) 자료실에서 지웁니다.`, ok: '삭제', danger: true})) return;
+    manifest.items.splice(i, 1);
+    if (current === i) { current = null; stage(null); setBar('자료를 선택하세요'); } else if (current > i) current--;
+    cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear();
+    await commit('삭제했어요'); purge([it]);
+  }
+  const under = (p, dir) => p === dir || p.startsWith(dir + '/');
+  async function editFolder(dir) {
+    const v = await dialog({title: '폴더 이름·위치 바꾸기', fields: [{label: '폴더 경로', value: dir}], ok: '바꾸기'});
+    if (!v || !norm(v[0]) || norm(v[0]) === dir) return;
+    const to = norm(v[0]), re = p => to + p.slice(dir.length);
+    manifest.items.forEach(it => { if (under(it.cat, dir)) it.cat = re(it.cat); });
+    manifest.dirs = manifest.dirs.map(d => under(d, dir) ? re(d) : d); manifest.dirs.push(to);
+    selDir = to; openDirs.clear(); await commit('바꿨어요');
+  }
+  async function deleteFolder(dir) {
+    const gone = manifest.items.filter(it => under(it.cat, dir));
+    if (!await dialog({title: '폴더를 삭제할까요?', msg: `「${dir}」 안의 자료 ${gone.length}개가 모두 지워져요.`, ok: '삭제', danger: true})) return;
+    manifest.items = manifest.items.filter(it => !under(it.cat, dir));
+    manifest.dirs = manifest.dirs.filter(d => !under(d, dir));
+    if (under(selDir, dir)) selDir = '';
+    current = null; stage(null); setBar('자료를 선택하세요');
+    cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear();
+    await commit('삭제했어요'); purge(gone);
+  }
+  async function deleteLink(li) {
+    const l = manifest.links[li];
+    if (!await dialog({title: '링크를 삭제할까요?', msg: l.title, ok: '삭제', danger: true})) return;
+    manifest.links.splice(li, 1); await commit('삭제했어요');
+  }
+  $('tbFolder').onclick = async () => {
+    const v = await dialog({title: '새 폴더', msg: selDir ? `「${selDir}」 안에 만들어요.` : '맨 위에 만들어요.', fields: [{label: '폴더 이름', ph: '예: 문학'}], ok: '만들기'});
+    if (!v || !v[0]) return;
+    const path = norm(selDir + '/' + v[0]);
+    if (!manifest.dirs.includes(path)) manifest.dirs.push(path);
+    openDirs.add('@files/' + selDir); selDir = path; await commit('폴더를 만들었어요');
+  };
+  $('tbLink').onclick = async () => {
+    const v = await dialog({title: '링크 추가', fields: [{label: '제목', ph: '예: 한글 탈출 게임'}, {label: '주소', ph: 'https://…'}, {label: '설명 (선택)'}, {label: '묶음 이름 (선택)'}], ok: '추가'});
+    if (!v || !v[0] || !v[1]) return;
+    let url = v[1]; if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    manifest.links.push({title: v[0], url, desc: v[2], cat: norm(v[3])}); await commit('링크를 추가했어요');
+  };
+
+  /* ---------- 업로드 ---------- */
+  const KIND = {pdf:'pdf', html:'html', htm:'html', png:'image', jpg:'image', jpeg:'image', gif:'image', webp:'image', svg:'image',
+    mp4:'video', webm:'video', m4v:'video', mov:'video', mp3:'audio', wav:'audio', m4a:'audio', ogg:'audio', txt:'text', md:'text', csv:'text'};
+  const MIME = {pdf:'application/pdf', html:'text/html', htm:'text/html', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif',
+    webp:'image/webp', svg:'image/svg+xml', mp4:'video/mp4', webm:'video/webm', m4v:'video/mp4', mov:'video/mp4', mp3:'audio/mpeg', wav:'audio/wav',
+    m4a:'audio/mp4', ogg:'audio/ogg', txt:'text/plain; charset=utf-8', md:'text/plain; charset=utf-8', csv:'text/plain; charset=utf-8'};
+  const SKIP = /^(\.|~\$|thumbs\.db$|desktop\.ini$)/i;
+
+  async function uploadOne(f, cat, onp) {
+    const ext = (f.name.split('.').pop() || '').toLowerCase(), kind = KIND[ext];
+    const id = randHex(10), n = Math.max(1, Math.ceil(f.size / CH)); let done = 0, next = 0;
+    async function w() {
+      while (next < n) {
+        const i = next++, buf = new Uint8Array(await f.slice(i * CH, (i + 1) * CH).arrayBuffer());
+        await store.put(`${id}.${i}`, await seal(buf)); onp(++done / n);
+      }
+    }
+    await Promise.all(Array.from({length: Math.min(3, n)}, w));
+    const ref = {id, n, size: f.size};
+    const item = {name: f.name, cat, ext, mtime: Math.floor((f.lastModified || Date.now()) / 1000),
+      ...(kind ? {kind, mime: MIME[ext], view: ref} : {kind: 'other', orig: ref})};
+    const old = manifest.items.findIndex(x => x.cat === cat && x.name === f.name);
+    let removed = null;
+    if (old >= 0) { removed = manifest.items[old]; manifest.items.splice(old, 1); cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear(); current = null; }
+    manifest.items.push(item); return {removed, kind};
+  }
+
+  async function addToQueue(entries) {
+    entries = entries.filter(e => !SKIP.test(e.file.name));
+    if (!entries.length) return;
+    const base = selDir, q = $('queue'), olds = [];
+    uploading++; $('uplClose').disabled = true;
+    let okN = 0;
+    for (const {file, rel} of entries) {
+      const dir = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
+      const cat = norm(base + '/' + dir);
+      const row = el('div', 'qi', `<div class="qh"><span class="qn">${esc(cat ? cat + '/' : '')}${esc(file.name)}</span><span class="qs">대기 중</span></div><div class="qb"><i></i></div>`);
+      q.append(row); row.scrollIntoView({block: 'nearest'});
+      const st = row.querySelector('.qs'), bar = row.querySelector('i');
+      try {
+        st.textContent = '올리는 중';
+        const r = await uploadOne(file, cat, p => { bar.style.width = (p * 100) + '%'; st.textContent = Math.round(p * 100) + '%'; });
+        if (r.removed) olds.push(r.removed);
+        bar.style.width = '100%'; row.classList.add('ok');
+        st.textContent = r.kind ? '완료' : '완료 (받기 전용 · PDF로 바꿔 올리면 바로 열려요)'; okN++;
+      } catch (e) { row.classList.add('bad'); st.textContent = '실패: ' + e.message; }
+    }
+    try { if (okN) { let pth = '@files'; base.split('/').filter(Boolean).forEach(x => { pth += '/' + x; openDirs.add(pth); }); await saveManifest(); renderList(); purge(olds); toast(`${okN}개 올렸어요`); } }
+    catch (e) { toast('목록 저장 실패: ' + e.message, 6000); }
+    uploading--; $('uplClose').disabled = false;
+  }
+
+  async function collect(ents, fallback) {
+    const out = [];
+    async function walk(en, path) {
+      if (en.isFile) { const f = await new Promise((r, j) => en.file(r, j)); out.push({file: f, rel: path + f.name}); }
+      else {
+        const rd = en.createReader(); let all = [];
+        for (;;) { const b = await new Promise((r, j) => rd.readEntries(r, j)); if (!b.length) break; all = all.concat(b); }
+        for (const c of all) await walk(c, path + en.name + '/');
+      }
+    }
+    for (const en of ents) await walk(en, '');
+    if (!out.length) [...fallback].forEach(f => out.push({file: f, rel: f.webkitRelativePath || f.name}));
+    return out;
+  }
+  function onDrop(e) {
+    e.preventDefault(); $('drop').classList.remove('over');
+    if (!key || !API) return;
+    const ents = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+    openUpload(); collect(ents, e.dataTransfer.files).then(addToQueue);
+  }
+  function openUpload() { $('uplWhere').textContent = '/' + selDir; $('upl').hidden = false; }
+  $('tbUpload').onclick = openUpload;
+  $('uplClose').onclick = () => { $('upl').hidden = true; $('queue').textContent = ''; };
+  $('pickFiles').onclick = () => $('fileIn').click();
+  $('pickDir').onclick = () => $('dirIn').click();
+  for (const id of ['fileIn', 'dirIn']) $(id).onchange = e => {
+    const fs = [...e.target.files]; e.target.value = '';
+    addToQueue(fs.map(f => ({file: f, rel: f.webkitRelativePath || f.name})));
+  };
+  addEventListener('dragover', e => { if (key && API) { e.preventDefault(); $('drop').classList.add('over'); } });
+  addEventListener('dragleave', e => { if (!e.relatedTarget) $('drop').classList.remove('over'); });
+  addEventListener('drop', onDrop);
+  addEventListener('beforeunload', e => { if (uploading) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ---------- 관리 모드 · 잠금 ---------- */
+  $('manageBtn').onclick = () => {
+    manage = !manage; $('app').classList.toggle('manage', manage); $('manageBtn').classList.toggle('on', manage);
+  };
+  function lock(msg) {
+    cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear();
+    key = token = manifest = curBlobInfo = null; current = null; manage = false; selDir = ''; stage(null);
+    $('app').classList.remove('manage', 'collapsed'); $('manageBtn').classList.remove('on');
+    $('list').textContent = ''; $('q').value = ''; $('pw').value = $('pw2').value = ''; openDirs.clear();
+    $('upl').hidden = true; $('queue').textContent = '';
+    document.querySelectorAll('.overlay:not(#upl)').forEach(o => o.remove());
+    $('app').hidden = true; $('lock').hidden = false;
+    $('lockBtn').hidden = $('manageBtn').hidden = true; $('state').textContent = '잠김';
+    document.title = '예랑샘의 수업자료실';
+    showErr(msg); boot(); $('pw').focus();
+  }
+  function showErr(msg) { $('err').hidden = !msg; $('err').textContent = msg || ''; }
+  $('lockBtn').onclick = () => lock();
+  addEventListener('pagehide', () => cache.forEach(e => URL.revokeObjectURL(e.url)));
+
+  let last = Date.now();
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => last = Date.now(), {passive: true}));
+  setInterval(() => {
+    if (!key) return;
+    const playing = [...document.querySelectorAll('video,audio')].some(m => !m.paused);
+    if (playing || uploading) last = Date.now();
+    else if (Date.now() - last > 60 * 60 * 1000) lock('오랫동안 사용하지 않아 자동으로 잠겼어요.');
+  }, 30000);
+
+  async function boot() {          // 처음 설정이 필요한지 확인해 잠금 화면을 맞춘다
+    try {
+      const m = await store.meta(); needSetup = !!API && !m.init;
+    } catch (e) { needSetup = false; showErr(e.message); }
+    $('pw2').hidden = !needSetup;
+    $('lockTitle').textContent = needSetup ? '처음 설정: 비밀번호 정하기' : '수업 자료 열기';
+    $('lockDesc').textContent = needSetup
+      ? '이 비밀번호로 모든 자료가 암호화돼요. 잊어버리면 되살릴 수 없으니 꼭 기억해 두세요. (10자 이상, 단어 여러 개 추천)'
+      : '비밀번호는 이 브라우저 탭의 메모리에서만 쓰이고, 어디에도 저장되지 않아요.';
+    $('go').textContent = needSetup ? '정하고 시작하기' : '열기';
+  }
+
+  $('form').onsubmit = async e => {
+    e.preventDefault();
+    const pw = $('pw').value; if (!pw) return;
+    $('go').disabled = true; const label = $('go').textContent; $('go').textContent = '확인 중…'; showErr();
+    try {
+      await unlock(pw, $('pw2').value);
+      $('pw').value = $('pw2').value = '';
+      $('lock').hidden = true; $('app').hidden = false;
+      $('lockBtn').hidden = false; $('manageBtn').hidden = !API;
+      $('state').textContent = `열림 · 자료 ${manifest.items.length}개`;
+      document.title = '예랑샘의 수업자료실';
+      last = Date.now(); renderList();
+    } catch (err) {
+      showErr(err.message === 'wrong' ? '비밀번호가 맞지 않아요.' : err.message);
+    } finally { $('go').disabled = false; $('go').textContent = label; }
+  };
+  boot();
+})();
+</script>
+</body>
+</html>
