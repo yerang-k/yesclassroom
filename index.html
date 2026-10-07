@@ -87,7 +87,7 @@ input{font:inherit}
 .toolbar .draghint{flex-basis:100%;font-size:12px;color:var(--sub)}
 .rootdrop{margin:0 0 10px;padding:9px 10px;border:2px dashed var(--beige);border-radius:10px;text-align:center;font-size:13px;color:var(--sub);background:#FAF9F6}
 .rootdrop.dragover{background:var(--beige-soft);border-color:var(--brown);color:var(--brown);font-weight:700}
-.ghost{position:fixed;left:0;top:0;z-index:70;pointer-events:none;padding:6px 12px;border-radius:8px;background:var(--ink);color:#fff;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:.9;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dragghost{position:fixed;left:0;top:0;z-index:70;pointer-events:none;padding:6px 12px;border-radius:8px;background:var(--ink);color:#fff;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:.9;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .manage .row{cursor:grab;touch-action:none}
 .row.dragging{opacity:.35}
 .fold.dragover{background:var(--beige-soft);box-shadow:inset 0 0 0 2px var(--brown)}
@@ -135,7 +135,11 @@ input{font:inherit}
   #app{grid-template-columns:1fr;grid-template-rows:auto minmax(60vh,1fr);height:auto}
   #app.collapsed{grid-template-rows:minmax(80vh,1fr)}
   #side{max-height:40vh}
-  .bar{padding:0 14px}
+  .bar{padding:0 12px;gap:8px}
+  .bar h1{font-size:17px;line-height:1.25}
+  .bar .btn{white-space:nowrap;padding:6px 10px}
+  .bar .pill{display:none}
+  .bar .avatar{width:38px;height:38px}
 }
 </style>
 </head>
@@ -588,7 +592,7 @@ input{font:inherit}
       const place = (x, y) => { if (ghost) { ghost.style.left = (x + 14) + 'px'; ghost.style.top = (y + 14) + 'px'; } };
       const begin = (x, y) => {
         started = true; btn.classList.add('dragging');
-        ghost = el('div', 'ghost', esc(btn.querySelector('.rname')?.textContent || ''));
+        ghost = el('div', 'dragghost', esc(btn.querySelector('.rname')?.textContent || ''));
         document.body.append(ghost); place(x, y);
         $('rootDrop').hidden = false;
         btn.addEventListener('click', swallowClick, {capture: true, once: true});
