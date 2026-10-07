@@ -24,7 +24,6 @@ input{font:inherit}
 /* 헤더 */
 .bar{background:var(--ink);color:#fff;height:68px;display:flex;align-items:center;gap:14px;padding:0 24px}
 .bar h1{font-size:22px;font-weight:700;margin:0}
-.bar .sub{color:var(--beige);font-size:14px}
 .bar .grow{flex:1}
 .pill{background:rgba(255,255,255,.14);border-radius:999px;padding:5px 14px;font-size:13px}
 .btn{background:var(--ink);color:#fff;border:2px solid var(--ink);border-radius:8px;padding:9px 18px;font-weight:500}
@@ -135,13 +134,13 @@ input{font:inherit}
   #app{grid-template-columns:1fr;grid-template-rows:auto minmax(60vh,1fr);height:auto}
   #app.collapsed{grid-template-rows:minmax(80vh,1fr)}
   #side{max-height:40vh}
-  .bar{padding:0 14px}.bar .sub{display:none}
+  .bar{padding:0 14px}
 }
 </style>
 </head>
 <body>
 <div class="bar">
-  <h1>예랑샘의 수업자료실</h1><span class="sub">잠겨 있어요 · 비밀번호를 입력하세요</span><span class="grow"></span>
+  <h1>예랑샘의 수업자료실</h1><span class="grow"></span>
   <span class="pill" id="state">잠김</span>
   <button class="btn" id="manageBtn" hidden title="올리기·정리 도구 보이기/숨기기">✎ 관리</button>
   <button class="btn" id="lockBtn" hidden>🔒 잠그기</button>
