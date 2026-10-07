@@ -74,6 +74,7 @@ input{font:inherit}
 .tag.other{background:#8A8A86}
 .rname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
 .rmeta{color:var(--sub);font-size:12px;flex:none}
+.rmeta .got{color:var(--brown)}
 .rdesc{display:block;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis}
 .line .btn.mini{padding:2px 8px;font-size:12px;border-width:1px;flex:none}
 .acts{display:none;flex:none;gap:2px}
@@ -199,6 +200,7 @@ input{font:inherit}
 <div id="app" hidden>
   <aside id="side">
     <input class="search" id="q" type="search" placeholder="자료·링크 검색">
+    <button class="btn ghost sm" id="preload" style="width:100%;margin:-4px 0 12px" title="지금 선택한 폴더의 자료를 미리 받아 두면 수업 중에 바로 열려요">⬇ 이 폴더 자료 미리 받기</button>
     <div class="rootdrop" id="rootDrop" hidden>⬆ 최상위 폴더로 옮기기</div>
     <div class="toolbar" id="toolbar">
       <button class="btn sm" id="tbUpload">＋ 올리기</button>
@@ -236,7 +238,7 @@ input{font:inherit}
   </div>
 </div>
 <div class="copy">
-  <div>예랑샘의 수업자료실 © 2026 KIMYERANG. 본 앱은 자유롭게 사용할 수 있으나, 저작자의 허락 없는<br>복제·배포·수정은 금지합니다. · v1.3 (2026-10-07)</div>
+  <div>예랑샘의 수업자료실 © 2026 KIMYERANG. 본 앱은 자유롭게 사용할 수 있으나, 저작자의 허락 없는<br>복제·배포·수정은 금지합니다. · v1.4 (2026-10-07)</div>
 </div>
 <div id="toast" hidden></div>
 
@@ -249,7 +251,28 @@ input{font:inherit}
   const CH = 3 * 1024 * 1024;                      // 업로드 조각 크기
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let key = null, token = null, manifest = null, current = null, manage = false, selDir = '', uploading = 0, needSetup = false;
-  const cache = new Map(), MAX_CACHE = 3;
+  const cache = new Map(), loading = new Map(), CACHE_BYTES = 300 * 1048576;   // 열어 본 자료는 용량이 찰 때까지 메모리에 둔다
+  let gen = 0, metaCache = null;
+  const clearCache = () => { gen++; loading.clear(); cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear(); };
+  const cacheBytes = () => [...cache.values()].reduce((a, e) => a + e.blob.size, 0);
+  function fetchItem(i, onProgress) {                // 같은 자료를 동시에 두 번 받지 않고, 미리 받는 중이면 거기에 합류
+    if (cache.has(i)) return Promise.resolve(cache.get(i));
+    let job = loading.get(i);
+    if (!job) {
+      const it = manifest.items[i], g = gen; job = {subs: new Set()};
+      job.promise = loadBlob(it.view, it.mime, f => job.subs.forEach(fn => fn(f))).then(blob => {
+        const ent = {blob, url: URL.createObjectURL(blob)};
+        if (g === gen) {
+          cache.set(i, ent);
+          for (const k of cache.keys()) { if (cacheBytes() <= CACHE_BYTES) break; if (k !== i && k !== current) { URL.revokeObjectURL(cache.get(k).url); cache.delete(k); } }
+        }
+        return ent;
+      }).finally(() => { if (loading.get(i) === job) loading.delete(i); });
+      loading.set(i, job);
+    }
+    onProgress && job.subs.add(onProgress);
+    return job.promise;
+  }
   let busy = 0;
 
   const fmtSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
@@ -321,7 +344,7 @@ input{font:inherit}
   }
 
   async function unlock(pw, pw2) {
-    const meta = await store.meta();
+    const meta = metaCache || await store.meta();
     if (API && !meta.init) {                                   // 처음 설정
       if (pw.length < 10) throw new Error('비밀번호는 10자 이상으로 정해 주세요. (단어 여러 개를 이어 쓰면 좋아요)');
       if (pw !== pw2) throw new Error('비밀번호가 서로 달라요.');
@@ -447,8 +470,10 @@ input{font:inherit}
     function fileRow(it, i, mv) {
       const line = el('div', 'line');
       const b = el('button', 'row' + (current === i ? ' on' : ''),
-        `<span class="tag ${it.kind === 'other' ? 'other' : ''}">${esc(tagOf(it))}</span><span class="rname" title="${esc(it.name)}">${esc(it.name)}</span><span class="rmeta">${fmtSize((it.view || it.orig).size)}</span>`);
+        `<span class="tag ${it.kind === 'other' ? 'other' : ''}">${esc(tagOf(it))}</span><span class="rname" title="${esc(it.name)}">${esc(it.name)}</span><span class="rmeta">${cache.has(i) ? '<b class="got" title="미리 받아 둠">✓</b> ' : ''}${fmtSize((it.view || it.orig).size)}</span>`);
       b.onclick = () => openItem(i);
+      let ht; b.onmouseenter = () => { if (it.kind !== 'other' && !cache.has(i) && !loading.size) ht = setTimeout(() => fetchItem(i).catch(() => {}), 300); };
+      b.onmouseleave = () => clearTimeout(ht);
       attachDrag(b, 'item', i);
       line.append(b, actions(() => editItem(i), () => deleteItem(i), mv)); return line;
     }
@@ -477,7 +502,7 @@ input{font:inherit}
     if (!tree.children.length) tree.append(el('div', 'note', q ? '검색 결과가 없어요.' : (API ? '비어 있어요. 위의 「✎ 관리」를 눌러 자료를 올려 보세요.' : '자료가 없어요.')));
     list.append(tree);
     $('where').textContent = '/' + selDir;
-    $('state').textContent = `열림 · 자료 ${manifest.items.length}개`;
+    $('state').textContent = `파일 ${manifest.items.length}개 · 링크 ${manifest.links.length}개`;
   }
   function revealItem(i) {
     let path = '@files';
@@ -506,15 +531,13 @@ input{font:inherit}
       setBar(it.name); return;
     }
     let ent = cache.get(i);
-    if (!ent) {
+    if (ent) { cache.delete(i); cache.set(i, ent); }                     // 최근에 쓴 자료는 나중에 밀려나게
+    else {
       const bar = el('div', 'prog'); bar.innerHTML = '<i></i>';
-      message('불러오는 중…', `${fmtSize(it.view.size)} · 복호화하고 있어요`, bar);
+      message('불러오는 중…', `${fmtSize(it.view.size)} · 서버에서 받아 복호화하고 있어요`, bar);
       try {
-        const blob = await loadBlob(it.view, it.mime, p => { const f = bar.firstChild; if (f) f.style.width = (p * 100) + '%'; });
+        ent = await fetchItem(i, p => { const f = bar.firstChild; if (f) f.style.width = (p * 100) + '%'; });
         if (my !== busy) return;
-        ent = {blob, url: URL.createObjectURL(blob)};
-        cache.set(i, ent);
-        while (cache.size > MAX_CACHE) { const k = cache.keys().next().value; URL.revokeObjectURL(cache.get(k).url); cache.delete(k); }
       } catch (e) { if (my === busy) message('불러오지 못했어요', esc(e.message)); return; }
     }
     if (my !== busy) return;
@@ -534,7 +557,7 @@ input{font:inherit}
     else if (it.kind === 'audio') { node = el('audio'); node.controls = true; node.autoplay = true; node.src = ent.url; }
     else if (it.kind === 'image') { node = el('img'); node.src = ent.url; }
     else { node = el('pre'); node.textContent = await ent.blob.text(); }
-    stage(node);
+    stage(node); renderList();
     setBar(it.name, {down: !!it.orig, tab: ['pdf', 'html', 'image'].includes(it.kind), full: true});
   }
 
@@ -714,6 +737,22 @@ input{font:inherit}
   $('toggleSide').onclick = toggleSide;
   addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && key) { e.preventDefault(); toggleSide(); } });
   $('q').oninput = renderList;
+  $('preload').onclick = async () => {                  // 수업 전에 폴더 안 자료를 한꺼번에 받아 둔다
+    const btn = $('preload'), room = CACHE_BYTES - cacheBytes();
+    let sum = 0, cut = false;
+    const todo = manifest.items.map((it, i) => i).filter(i => {
+      const it = manifest.items[i];
+      if (it.kind === 'other' || cache.has(i) || (selDir && !(it.cat === selDir || it.cat.startsWith(selDir + '/')))) return false;
+      if (sum + it.view.size > room) { cut = true; return false; }
+      sum += it.view.size; return true;
+    });
+    if (!todo.length) return toast(cut ? '메모리 한도(300MB)가 차서 더 받을 수 없어요' : '이 폴더 자료는 이미 모두 받아 뒀어요');
+    btn.disabled = true; let done = 0; const total = todo.length, label = btn.textContent, g = gen;
+    const worker = async () => { while (todo.length) { const i = todo.shift(); try { await fetchItem(i); } catch (e) { /* 실패한 자료는 나중에 열 때 다시 시도 */ } btn.textContent = `받는 중… ${++done}/${total}`; } };
+    await Promise.all([worker(), worker()]);
+    btn.disabled = false; btn.textContent = label;
+    if (g === gen) { renderList(); toast(cut ? `${total}개 받았어요 (메모리 한도로 일부는 건너뛰었어요)` : `${total}개를 받아 뒀어요. 이제 바로 열려요`); }
+  };
   $('where').onclick = () => { selDir = ''; renderList(); };
 
   /* ---------- 관리: 이름·위치·삭제 ---------- */
@@ -742,7 +781,7 @@ input{font:inherit}
     if (!await dialog({title: '삭제할까요?', msg: `「${it.name}」을(를) 자료실에서 지웁니다.`, ok: '삭제', danger: true})) return;
     manifest.items.splice(i, 1);
     if (current === i) { current = null; stage(null); setBar('자료를 선택하세요'); } else if (current > i) current--;
-    cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear();
+    clearCache();
     await commit('삭제했어요'); purge([it]);
   }
   const under = (p, dir) => p === dir || p.startsWith(dir + '/');
@@ -786,7 +825,7 @@ input{font:inherit}
     manifest.dirs = manifest.dirs.filter(d => !under(d, dir)); dropOrder(dir);
     if (under(selDir, dir)) selDir = '';
     current = null; stage(null); setBar('자료를 선택하세요');
-    cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear();
+    clearCache();
     await commit('삭제했어요'); purge(gone);
   }
   async function deleteLink(li) {
@@ -904,7 +943,7 @@ input{font:inherit}
       ...(kind ? {kind, mime: MIME[ext], view: ref} : {kind: 'other', orig: ref})};
     const old = manifest.items.findIndex(x => x.cat === cat && x.name === f.name);
     let removed = null;
-    if (old >= 0) { removed = manifest.items[old]; manifest.items.splice(old, 1); cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear(); current = null; }
+    if (old >= 0) { removed = manifest.items[old]; manifest.items.splice(old, 1); clearCache(); current = null; }
     manifest.items.push(item); return {removed, kind};
   }
 
@@ -972,8 +1011,8 @@ input{font:inherit}
     manage = !manage; $('app').classList.toggle('manage', manage); $('manageBtn').classList.toggle('on', manage);
   };
   function lock(msg) {
-    cache.forEach(e => URL.revokeObjectURL(e.url)); cache.clear();
-    key = token = manifest = curBlobInfo = null; current = null; manage = false; selDir = ''; stage(null);
+    clearCache();
+    key = token = manifest = curBlobInfo = metaCache = null; current = null; manage = false; selDir = ''; stage(null);
     $('app').classList.remove('manage', 'collapsed'); $('manageBtn').classList.remove('on');
     $('list').textContent = ''; $('q').value = ''; $('pw').value = $('pw2').value = ''; openDirs.clear();
     $('upl').hidden = true; $('queue').textContent = '';
@@ -985,7 +1024,7 @@ input{font:inherit}
   }
   function showErr(msg) { $('err').hidden = !msg; $('err').textContent = msg || ''; }
   $('lockBtn').onclick = () => lock();
-  addEventListener('pagehide', () => cache.forEach(e => URL.revokeObjectURL(e.url)));
+  addEventListener('pagehide', clearCache);
 
   let last = Date.now();
   ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => last = Date.now(), {passive: true}));
@@ -998,7 +1037,7 @@ input{font:inherit}
 
   async function boot() {          // 처음 설정이 필요한지 확인해 잠금 화면을 맞춘다
     try {
-      const m = await store.meta(); needSetup = !!API && !m.init;
+      const m = metaCache = await store.meta(); needSetup = !!API && !m.init;
     } catch (e) { needSetup = false; showErr(e.message); }
     $('pw2').hidden = !needSetup;
     $('lockTitle').textContent = needSetup ? '처음 설정: 비밀번호 정하기' : '수업 자료 열기';
@@ -1017,9 +1056,9 @@ input{font:inherit}
       $('pw').value = $('pw2').value = '';
       $('lock').hidden = true; $('app').hidden = false;
       $('lockBtn').hidden = false; $('manageBtn').hidden = !API;
-      $('state').textContent = `열림 · 자료 ${manifest.items.length}개`;
+      $('state').textContent = `파일 ${manifest.items.length}개 · 링크 ${manifest.links.length}개`;
       document.title = '예랑샘의 수업자료실';
-      last = Date.now(); renderList();
+      last = Date.now(); renderList(); loadPdfjs().catch(() => {});   // PDF 뷰어 라이브러리를 미리 받아 두기
     } catch (err) {
       showErr(err.message === 'wrong' ? '비밀번호가 맞지 않아요.' : err.message);
     } finally { $('go').disabled = false; $('go').textContent = label; }
