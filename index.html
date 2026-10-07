@@ -23,8 +23,8 @@ input{font:inherit}
 
 /* 헤더 */
 .bar{background:var(--ink);color:#fff;height:68px;display:flex;align-items:center;gap:14px;padding:0 24px}
+.bar .avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 0%;border:2px solid var(--beige);flex:none}
 .bar h1{font-size:22px;font-weight:700;margin:0}
-.bar .sub{color:var(--beige);font-size:14px}
 .bar .grow{flex:1}
 .pill{background:rgba(255,255,255,.14);border-radius:999px;padding:5px 14px;font-size:13px}
 .btn{background:var(--ink);color:#fff;border:2px solid var(--ink);border-radius:8px;padding:9px 18px;font-weight:500}
@@ -82,7 +82,16 @@ input{font:inherit}
 .toolbar{display:none;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .manage .toolbar{display:flex}
 .toolbar .where{flex-basis:100%;font-size:13px;color:var(--sub)}
-.toolbar .where b{color:var(--brown)}
+.toolbar .where .whereBtn{color:var(--brown);background:none;border:0;padding:0;font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
+.toolbar .where .whereBtn:hover{color:var(--ink)}
+.toolbar .draghint{flex-basis:100%;font-size:12px;color:var(--sub)}
+.rootdrop{margin:0 0 10px;padding:9px 10px;border:2px dashed var(--beige);border-radius:10px;text-align:center;font-size:13px;color:var(--sub);background:#FAF9F6}
+.rootdrop.dragover{background:var(--beige-soft);border-color:var(--brown);color:var(--brown);font-weight:700}
+.ghost{position:fixed;left:0;top:0;z-index:70;pointer-events:none;padding:6px 12px;border-radius:8px;background:var(--ink);color:#fff;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:.9;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manage .row{cursor:grab;touch-action:none}
+.row.dragging{opacity:.35}
+.fold.dragover{background:var(--beige-soft);box-shadow:inset 0 0 0 2px var(--brown)}
+.btn.mini.on{background:var(--beige);border-color:var(--beige);color:var(--ink)}
 
 /* 뷰어 */
 #view{background:var(--card);border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05);display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden}
@@ -126,13 +135,14 @@ input{font:inherit}
   #app{grid-template-columns:1fr;grid-template-rows:auto minmax(60vh,1fr);height:auto}
   #app.collapsed{grid-template-rows:minmax(80vh,1fr)}
   #side{max-height:40vh}
-  .bar{padding:0 14px}.bar .sub{display:none}
+  .bar{padding:0 14px}
 }
 </style>
 </head>
 <body>
 <div class="bar">
-  <h1>예랑샘의 수업자료실</h1><span class="sub">잠겨 있어요 · 비밀번호를 입력하세요</span><span class="grow"></span>
+  <img class="avatar" src="avatar.webp" alt="예랑샘 캐릭터">
+  <h1>예랑샘의 수업자료실</h1><span class="grow"></span>
   <span class="pill" id="state">잠김</span>
   <button class="btn" id="manageBtn" hidden title="올리기·정리 도구 보이기/숨기기">✎ 관리</button>
   <button class="btn" id="lockBtn" hidden>🔒 잠그기</button>
@@ -153,11 +163,13 @@ input{font:inherit}
 <div id="app" hidden>
   <aside id="side">
     <input class="search" id="q" type="search" placeholder="자료·링크 검색">
+    <div class="rootdrop" id="rootDrop" hidden>⬆ 최상위 폴더로 옮기기</div>
     <div class="toolbar" id="toolbar">
       <button class="btn sm" id="tbUpload">＋ 올리기</button>
       <button class="btn ghost sm" id="tbFolder">새 폴더</button>
       <button class="btn ghost sm" id="tbLink">링크 추가</button>
-      <div class="where">위치: <b id="where">/</b> <span>(폴더를 누르면 바뀌어요)</span></div>
+      <div class="where">위치: <button class="whereBtn" id="where" type="button">/</button> <span>(폴더를 누르면 바뀌어요 · 위치를 누르면 최상위로)</span></div>
+      <div class="draghint">자료나 링크를 길게 눌러 끌면 폴더를 옮길 수 있어요.</div>
     </div>
     <div id="list"></div>
   </aside>
@@ -336,34 +348,39 @@ input{font:inherit}
 
   function renderList() {
     const q = $('q').value.trim().toLowerCase();
-    const files = makeNode(), links = makeNode();
+    const files = makeNode();
     manifest.dirs.forEach(d => { if (!q) dive(files, d); });
     manifest.items.forEach((it, i) => {
       if (q && !(it.name + ' ' + it.cat).toLowerCase().includes(q)) return;
       dive(files, it.cat).files.push({it, i});
     });
     manifest.links.forEach((l, li) => {
-      if (q && !(l.title + ' ' + l.desc + ' ' + l.cat).toLowerCase().includes(q)) return;
-      dive(links, l.cat).files.push({l, li});
+      if (q && !(l.title + ' ' + (l.desc || '') + ' ' + l.cat).toLowerCase().includes(q)) return;
+      dive(files, l.cat).files.push({l, li});
     });
+    const favs = [];
+    manifest.links.forEach((l, li) => {
+      if (!l.fav) return;
+      if (q && !(l.title + ' ' + (l.desc || '')).toLowerCase().includes(q)) return;
+      favs.push({l, li});
+    });
+    favs.sort((a, b) => natural(a.l.title, b.l.title));
+
     const list = $('list'); list.textContent = '';
     const tree = el('div', 'tree'), forceOpen = !!q;
 
-    function drawNode(node, path, into, root) {
+    function drawNode(node, path, into) {
       [...node.dirs.keys()].sort(natural).forEach(name => {
-        const child = node.dirs.get(name), key = path + '/' + name, rel = key.slice(root.length + 1);
+        const child = node.dirs.get(name), key = path + '/' + name, rel = key.slice('@files'.length + 1);
         const open = forceOpen || openDirs.has(key);
         const line = el('div', 'line');
-        const f = el('button', 'fold' + (open ? ' open' : '') + (root === '@files' && selDir === rel ? ' sel' : ''),
+        const f = el('button', 'fold' + (open ? ' open' : '') + (selDir === rel ? ' sel' : ''),
           `<span class="chev">▶</span>${FOLDER}<span class="rname">${esc(name)}</span><span class="cnt">${countAll(child)}</span>`);
-        f.onclick = () => {
-          if (root === '@files') selDir = rel;
-          openDirs.has(key) ? openDirs.delete(key) : openDirs.add(key); renderList();
-        };
-        line.append(f);
-        if (root === '@files') line.append(actions(() => editFolder(rel), () => deleteFolder(rel)));
+        f.dataset.path = rel;
+        f.onclick = () => { selDir = rel; openDirs.has(key) ? openDirs.delete(key) : openDirs.add(key); renderList(); };
+        line.append(f, actions(() => editFolder(rel), () => deleteFolder(rel)));
         into.append(line);
-        if (open) { const k = el('div', 'kids'); drawNode(child, key, k, root); into.append(k); }
+        if (open) { const k = el('div', 'kids'); drawNode(child, key, k); into.append(k); }
       });
       const nameOf = x => x.it ? x.it.name : x.l.title;
       node.files.sort((a, b) => natural(nameOf(a), nameOf(b)));
@@ -380,27 +397,31 @@ input{font:inherit}
       const b = el('button', 'row' + (current === i ? ' on' : ''),
         `<span class="tag ${it.kind === 'other' ? 'other' : ''}">${esc(tagOf(it))}</span><span class="rname" title="${esc(it.name)}">${esc(it.name)}</span><span class="rmeta">${fmtSize((it.view || it.orig).size)}</span>`);
       b.onclick = () => openItem(i);
+      attachDrag(b, 'item', i);
       line.append(b, actions(() => editItem(i), () => deleteItem(i))); return line;
     }
     function linkRow(l, li) {
       const line = el('div', 'line');
       const b = el('button', 'row', `<span class="tag link">링크</span><span class="rname" title="${esc(l.url)}">${esc(l.title)}${l.desc ? `<span class="rdesc">${esc(l.desc)}</span>` : ''}</span>`);
       b.onclick = () => window.open(l.url, '_blank', 'noopener');
+      attachDrag(b, 'link', li);
+      const star = el('button', 'btn ghost mini' + (l.fav ? ' on' : ''), l.fav ? '★' : '☆');
+      star.title = l.fav ? '자주 쓰는 링크에서 빼기' : '자주 쓰는 링크로 추가';
+      star.onclick = ev => { ev.stopPropagation(); l.fav = !l.fav; commit(); };
       const emb = el('button', 'btn ghost mini', '여기서'); emb.title = '이 화면 안에서 열기 (사이트가 허용할 때만)';
-      emb.onclick = () => showFrame(l);
-      const a = el('span', 'acts'), d = el('button', '', '🗑'); d.title = '링크 삭제'; d.onclick = () => deleteLink(li); a.append(d);
-      line.append(b, emb, a); return line;
+      emb.onclick = ev => { ev.stopPropagation(); showFrame(l); };
+      line.append(b, star, emb, actions(() => editLink(li), () => deleteLink(li))); return line;
     }
 
-    if (countAll(links)) {
+    if (favs.length) {
       const closed = openDirs.has('!links'), open = forceOpen || !closed;
       const f = el('button', 'fold' + (open ? ' open' : ''),
-        `<span class="chev">▶</span>${FOLDER}<span class="rname">자주 쓰는 링크</span><span class="cnt">${countAll(links)}</span>`);
+        `<span class="chev">▶</span>${FOLDER}<span class="rname">자주 쓰는 링크</span><span class="cnt">${favs.length}</span>`);
       f.onclick = () => { closed ? openDirs.delete('!links') : openDirs.add('!links'); renderList(); };
       const line = el('div', 'line'); line.append(f); tree.append(line);
-      if (open) { const k = el('div', 'kids'); drawNode(links, '@links', k, '@links'); tree.append(k); }
+      if (open) { const k = el('div', 'kids'); favs.forEach(({l, li}) => k.append(linkRow(l, li))); tree.append(k); }
     }
-    drawNode(files, '@files', tree, '@files');
+    drawNode(files, '@files', tree);
     if (!tree.children.length) tree.append(el('div', 'note', q ? '검색 결과가 없어요.' : (API ? '비어 있어요. 위의 「✎ 관리」를 눌러 자료를 올려 보세요.' : '자료가 없어요.')));
     list.append(tree);
     $('where').textContent = '/' + selDir;
@@ -483,6 +504,7 @@ input{font:inherit}
   $('toggleSide').onclick = toggleSide;
   addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && key) { e.preventDefault(); toggleSide(); } });
   $('q').oninput = renderList;
+  $('where').onclick = () => { selDir = ''; renderList(); };
 
   /* ---------- 관리: 이름·위치·삭제 ---------- */
   async function blobsOf(items) {
@@ -536,6 +558,74 @@ input{font:inherit}
     if (!await dialog({title: '링크를 삭제할까요?', msg: l.title, ok: '삭제', danger: true})) return;
     manifest.links.splice(li, 1); await commit('삭제했어요');
   }
+  async function editLink(li) {
+    const l = manifest.links[li];
+    const v = await dialog({title: '링크 정보 바꾸기', fields: [
+      {label: '제목', value: l.title}, {label: '주소', value: l.url},
+      {label: '설명 (선택)', value: l.desc || ''}, {label: '폴더 (예: 문학/현대시)', value: l.cat}
+    ], ok: '바꾸기'});
+    if (!v || !v[0] || !v[1]) return;
+    let url = v[1]; if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    l.title = v[0]; l.url = url; l.desc = v[2]; l.cat = norm(v[3]);
+    await commit('바꿨어요');
+  }
+
+  /* ---------- 자료·링크를 끌어서 폴더 옮기기 ---------- */
+  function moveTo(type, idx, path) {
+    path = norm(path || '');
+    const obj = type === 'item' ? manifest.items[idx] : manifest.links[idx];
+    if (!obj || obj.cat === path) return;
+    obj.cat = path;
+    let pth = '@files'; path.split('/').filter(Boolean).forEach(x => { pth += '/' + x; openDirs.add(pth); });
+    commit('옮겼어요');
+  }
+  function swallowClick(e) { e.preventDefault(); e.stopPropagation(); }
+  function attachDrag(btn, type, idx) {
+    btn.addEventListener('pointerdown', e => {
+      if (!manage || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      const sx = e.clientX, sy = e.clientY, isTouch = e.pointerType !== 'mouse', readyAt = Date.now() + (isTouch ? 320 : 0);
+      let started = false, ghost = null, lastEl = null, lastPath = null;
+      const place = (x, y) => { if (ghost) { ghost.style.left = (x + 14) + 'px'; ghost.style.top = (y + 14) + 'px'; } };
+      const begin = (x, y) => {
+        started = true; btn.classList.add('dragging');
+        ghost = el('div', 'ghost', esc(btn.querySelector('.rname')?.textContent || ''));
+        document.body.append(ghost); place(x, y);
+        $('rootDrop').hidden = false;
+        btn.addEventListener('click', swallowClick, {capture: true, once: true});
+      };
+      const targetAt = (x, y) => {
+        const under = document.elementFromPoint(x, y);
+        if (!under) return null;
+        const rd = $('rootDrop');
+        if (!rd.hidden && (under === rd || rd.contains(under))) return {el: rd, path: ''};
+        const fold = under.closest('.fold');
+        return (fold && fold.dataset.path !== undefined) ? {el: fold, path: fold.dataset.path} : null;
+      };
+      const mark = t => {
+        if (lastEl && lastEl !== t?.el) lastEl.classList.remove('dragover');
+        lastEl = t ? t.el : null; lastPath = t ? t.path : null;
+        if (lastEl) lastEl.classList.add('dragover');
+      };
+      function move(ev) {
+        if (!started) {
+          const d = Math.hypot(ev.clientX - sx, ev.clientY - sy);
+          if (isTouch) { if (d > 10) return end(false); if (Date.now() < readyAt) return; begin(ev.clientX, ev.clientY); }
+          else { if (d < 6) return; begin(ev.clientX, ev.clientY); }
+        }
+        ev.preventDefault(); place(ev.clientX, ev.clientY); mark(targetAt(ev.clientX, ev.clientY));
+      }
+      function end(doMove) {
+        removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', cancel);
+        if (started) {
+          btn.classList.remove('dragging'); ghost && ghost.remove(); $('rootDrop').hidden = true;
+          lastEl && lastEl.classList.remove('dragover');
+          if (doMove && lastPath != null) moveTo(type, idx, lastPath);
+        }
+      }
+      const up = () => end(true), cancel = () => end(false);
+      addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', cancel);
+    });
+  }
   $('tbFolder').onclick = async () => {
     const v = await dialog({title: '새 폴더', msg: selDir ? `「${selDir}」 안에 만들어요.` : '맨 위에 만들어요.', fields: [{label: '폴더 이름', ph: '예: 문학'}], ok: '만들기'});
     if (!v || !v[0]) return;
@@ -544,10 +634,12 @@ input{font:inherit}
     openDirs.add('@files/' + selDir); selDir = path; await commit('폴더를 만들었어요');
   };
   $('tbLink').onclick = async () => {
-    const v = await dialog({title: '링크 추가', fields: [{label: '제목', ph: '예: 한글 탈출 게임'}, {label: '주소', ph: 'https://…'}, {label: '설명 (선택)'}, {label: '묶음 이름 (선택)'}], ok: '추가'});
+    const v = await dialog({title: '링크 추가', msg: selDir ? `「${selDir}」 안에 추가해요.` : '맨 위에 추가해요.', fields: [{label: '제목', ph: '예: 한글 탈출 게임'}, {label: '주소', ph: 'https://…'}, {label: '설명 (선택)'}], ok: '추가'});
     if (!v || !v[0] || !v[1]) return;
     let url = v[1]; if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    manifest.links.push({title: v[0], url, desc: v[2], cat: norm(v[3])}); await commit('링크를 추가했어요');
+    manifest.links.push({title: v[0], url, desc: v[2], cat: selDir, fav: false});
+    let pth = '@files'; selDir.split('/').filter(Boolean).forEach(x => { pth += '/' + x; openDirs.add(pth); });
+    await commit('링크를 추가했어요');
   };
 
   /* ---------- 업로드 ---------- */
