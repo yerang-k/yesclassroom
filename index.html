@@ -205,7 +205,7 @@ input{font:inherit}
       <button class="btn ghost sm" id="tbFolder">새 폴더</button>
       <button class="btn ghost sm" id="tbLink">링크 추가</button>
       <div class="where">위치: <button class="whereBtn" id="where" type="button">/</button> <span>(폴더를 누르면 바뀌어요 · 위치를 누르면 최상위로)</span></div>
-      <div class="draghint">자료나 링크를 길게 눌러 끌면 폴더를 옮길 수 있고, 폴더 옆 ▲▼로 폴더 순서를 바꿀 수 있어요.</div>
+      <div class="draghint">자료나 링크를 길게 눌러 끌면 폴더를 옮길 수 있고, 폴더·자료 옆 ▲▼로 순서를 바꿀 수 있어요.</div>
     </div>
     <div id="list"></div>
   </aside>
@@ -236,7 +236,7 @@ input{font:inherit}
   </div>
 </div>
 <div class="copy">
-  <div>예랑샘의 수업자료실 © 2026 KIMYERANG. 본 앱은 자유롭게 사용할 수 있으나, 저작자의 허락 없는<br>복제·배포·수정은 금지합니다. · v1.2 (2026-10-07)</div>
+  <div>예랑샘의 수업자료실 © 2026 KIMYERANG. 본 앱은 자유롭게 사용할 수 있으나, 저작자의 허락 없는<br>복제·배포·수정은 금지합니다. · v1.3 (2026-10-07)</div>
 </div>
 <div id="toast" hidden></div>
 
@@ -329,17 +329,17 @@ input{font:inherit}
       await derive(pw, salt, iter);
       const r = await rpc({a: 'init', t: token, salt: toHex(salt), iter});
       if (!r.ok) throw new Error('처음 설정에 실패했어요. (' + r.error + ')');
-      manifest = {v: 1, items: [], links: [], dirs: [], order: {}};
+      manifest = {v: 1, items: [], links: [], dirs: [], order: {}, forder: {}};
       await saveManifest();
       return;
     }
     await derive(pw, fromHex(meta.salt), meta.iter);
     let buf;
     try { buf = await store.get('manifest.enc'); }
-    catch (e) { key = token = null; if (e.message === 'nf' && API) { manifest = {v: 1, items: [], links: [], dirs: [], order: {}}; return; } throw e; }
+    catch (e) { key = token = null; if (e.message === 'nf' && API) { manifest = {v: 1, items: [], links: [], dirs: [], order: {}, forder: {}}; return; } throw e; }
     try { manifest = JSON.parse(dec.decode(await open(buf))); }
     catch { key = token = null; throw new Error('wrong'); }
-    manifest.items ||= []; manifest.links ||= []; manifest.dirs ||= []; manifest.order ||= {};
+    manifest.items ||= []; manifest.links ||= []; manifest.dirs ||= []; manifest.order ||= {}; manifest.forder ||= {};
   }
 
   async function loadBlob(ref, mime, onProgress) {
@@ -425,9 +425,14 @@ input{font:inherit}
         into.append(line);
         if (open) { const k = el('div', 'kids'); drawNode(child, key, k); into.append(k); }
       });
-      const nameOf = x => x.it ? x.it.name : x.l.title;
-      node.files.sort((a, b) => natural(nameOf(a), nameOf(b)));
-      node.files.forEach(x => into.append(x.l ? linkRow(x.l, x.li) : fileRow(x.it, x.i)));
+      const nameOf = x => x.it ? x.it.name : x.l.title, fkey = x => x.it ? fileKey(x.it) : linkKey(x.l);
+      const ford = manifest.forder[parent] || [], frank = x => { const i = ford.indexOf(fkey(x)); return i < 0 ? 1e9 : i; };
+      node.files.sort((a, b) => frank(a) - frank(b) || natural(nameOf(a), nameOf(b)));
+      const fkeys = node.files.map(fkey);
+      node.files.forEach((x, k) => {
+        const mv = forceOpen ? null : {up: k > 0 && (() => moveFile(parent, fkeys, k, -1)), down: k < fkeys.length - 1 && (() => moveFile(parent, fkeys, k, 1))};
+        into.append(x.l ? linkRow(x.l, x.li, mv) : fileRow(x.it, x.i, mv));
+      });
     }
     function actions(onEdit, onDel, mv) {
       const a = el('span', 'acts'), e = el('button', '', '✎'), d = el('button', '', '🗑');
@@ -439,15 +444,15 @@ input{font:inherit}
       e.onclick = ev => { ev.stopPropagation(); onEdit(); }; d.onclick = ev => { ev.stopPropagation(); onDel(); };
       a.append(e, d); return a;
     }
-    function fileRow(it, i) {
+    function fileRow(it, i, mv) {
       const line = el('div', 'line');
       const b = el('button', 'row' + (current === i ? ' on' : ''),
         `<span class="tag ${it.kind === 'other' ? 'other' : ''}">${esc(tagOf(it))}</span><span class="rname" title="${esc(it.name)}">${esc(it.name)}</span><span class="rmeta">${fmtSize((it.view || it.orig).size)}</span>`);
       b.onclick = () => openItem(i);
       attachDrag(b, 'item', i);
-      line.append(b, actions(() => editItem(i), () => deleteItem(i))); return line;
+      line.append(b, actions(() => editItem(i), () => deleteItem(i), mv)); return line;
     }
-    function linkRow(l, li) {
+    function linkRow(l, li, mv) {
       const line = el('div', 'line');
       const b = el('button', 'row', `<span class="tag link">링크</span><span class="rname" title="${esc(l.url)}">${esc(l.title)}${l.desc ? `<span class="rdesc">${esc(l.desc)}</span>` : ''}</span>`);
       b.onclick = () => window.open(l.url, '_blank', 'noopener');
@@ -457,7 +462,7 @@ input{font:inherit}
       star.onclick = ev => { ev.stopPropagation(); l.fav = !l.fav; commit(); };
       const emb = el('button', 'btn ghost mini', '여기서'); emb.title = '이 화면 안에서 열기 (사이트가 허용할 때만)';
       emb.onclick = ev => { ev.stopPropagation(); showFrame(l); };
-      line.append(b, star, emb, actions(() => editLink(li), () => deleteLink(li))); return line;
+      line.append(b, star, emb, actions(() => editLink(li), () => deleteLink(li), mv)); return line;
     }
 
     if (favs.length) {
@@ -729,7 +734,8 @@ input{font:inherit}
     const it = manifest.items[i];
     const v = await dialog({title: '이름·위치 바꾸기', fields: [{label: '파일 이름', value: it.name}, {label: '폴더 (예: 문학/현대시)', value: it.cat}], ok: '바꾸기'});
     if (!v || !v[0]) return;
-    it.name = v[0]; it.cat = norm(v[1]); await commit('바꿨어요');
+    const cat = norm(v[1]); if (cat === it.cat) renameKey(cat, fileKey(it), 'f:' + v[0]);   // 같은 폴더면 제자리 유지
+    it.name = v[0]; it.cat = cat; await commit('바꿨어요');
   }
   async function deleteItem(i) {
     const it = manifest.items[i];
@@ -740,6 +746,13 @@ input{font:inherit}
     await commit('삭제했어요'); purge([it]);
   }
   const under = (p, dir) => p === dir || p.startsWith(dir + '/');
+  const fileKey = it => 'f:' + it.name, linkKey = l => 'l:' + l.title + '|' + l.url;   // 폴더 안 자료·링크의 순서 기록용 이름표
+  async function moveFile(cat, keys, idx, d) {         // 같은 폴더 안 자료·링크끼리 순서 바꾸기
+    const list = keys.slice(), j = idx + d;
+    [list[idx], list[j]] = [list[j], list[idx]];
+    manifest.forder[cat] = list; await commit();
+  }
+  const renameKey = (cat, from, to) => { const o = manifest.forder[cat]; if (o && from !== to) manifest.forder[cat] = o.map(k => k === from ? to : k); };
   async function moveDir(parent, names, idx, d) {      // 같은 위치 폴더끼리 순서 바꾸기
     const list = names.slice(), j = idx + d;
     [list[idx], list[j]] = [list[j], list[idx]];
@@ -751,6 +764,9 @@ input{font:inherit}
     const sub = {};                                    // 하위 폴더들의 순서는 새 경로로 옮겨 담는다
     for (const k of Object.keys(manifest.order)) if (under(k, dir)) { if (to) sub[to + k.slice(dir.length)] = manifest.order[k]; delete manifest.order[k]; }
     Object.assign(manifest.order, sub);
+    const fsub = {};                                   // 폴더 안 자료·링크 순서도 같은 방식으로
+    for (const k of Object.keys(manifest.forder)) if (under(k, dir)) { if (to) fsub[to + k.slice(dir.length)] = manifest.forder[k]; delete manifest.forder[k]; }
+    Object.assign(manifest.forder, fsub);
     const o = manifest.order[par];
     if (o) manifest.order[par] = to && par2 === par ? o.map(n => n === name ? name2 : n) : o.filter(n => n !== name);
   };
@@ -759,6 +775,7 @@ input{font:inherit}
     if (!v || !norm(v[0]) || norm(v[0]) === dir) return;
     const to = norm(v[0]), re = p => to + p.slice(dir.length);
     manifest.items.forEach(it => { if (under(it.cat, dir)) it.cat = re(it.cat); });
+    manifest.links.forEach(l => { if (under(l.cat, dir)) l.cat = re(l.cat); });
     manifest.dirs = manifest.dirs.map(d => under(d, dir) ? re(d) : d); manifest.dirs.push(to);
     dropOrder(dir, to); selDir = to; openDirs.clear(); await commit('바꿨어요');
   }
@@ -785,7 +802,10 @@ input{font:inherit}
     ], ok: '바꾸기'});
     if (!v || !v[0] || !v[1]) return;
     let url = v[1]; if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    l.title = v[0]; l.url = url; l.desc = v[2]; l.cat = norm(v[3]);
+    const cat = norm(v[3]), oldKey = linkKey(l);
+    l.title = v[0]; l.url = url; l.desc = v[2];
+    if (cat === l.cat) renameKey(cat, oldKey, linkKey(l));
+    l.cat = cat;
     await commit('바꿨어요');
   }
 
