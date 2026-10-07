@@ -23,6 +23,7 @@ input{font:inherit}
 
 /* 헤더 */
 .bar{background:var(--ink);color:#fff;height:68px;display:flex;align-items:center;gap:14px;padding:0 24px}
+.bar .avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 0%;border:2px solid var(--beige);flex:none}
 .bar h1{font-size:22px;font-weight:700;margin:0}
 .bar .grow{flex:1}
 .pill{background:rgba(255,255,255,.14);border-radius:999px;padding:5px 14px;font-size:13px}
@@ -140,6 +141,7 @@ input{font:inherit}
 </head>
 <body>
 <div class="bar">
+  <img class="avatar" src="avatar.webp" alt="예랑샘 캐릭터">
   <h1>예랑샘의 수업자료실</h1><span class="grow"></span>
   <span class="pill" id="state">잠김</span>
   <button class="btn" id="manageBtn" hidden title="올리기·정리 도구 보이기/숨기기">✎ 관리</button>
